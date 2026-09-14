@@ -48,6 +48,14 @@ When a ticket changes:
    roster or renderer, but must not smuggle in product scope, private notes, or
    delivery status.
 
+## Worktrees
+
+All linked feature and agent worktrees for this repository belong under
+`.worktrees/<name>` inside the repository's main checkout. Keep `.worktrees/`
+ignored and do not create sibling `*-worktrees` directories or use a global
+tool-specific worktree location. BMAD loop-managed run worktrees under
+`.bmad-loop/runs/<run>/worktrees/` are engine-owned and remain there.
+
 ## GitHub Project mirror
 
 GitHub Project #3 is a mechanical mirror of accepted local BMad delivery
