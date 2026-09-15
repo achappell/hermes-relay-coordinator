@@ -22,6 +22,7 @@ ALLOWED_STATUSES = {
 DEFAULT_REPOSITORY_ALIASES = ("tui", "ios", "android", "home", "agent")
 META_KEY_PATTERNS = (
     re.compile(r"^epic-"),
+    re.compile(r"^next-wave$"),
     re.compile(r"-retrospective$"),
     re.compile(r"^retrospective-"),
     re.compile(r"^action[_-]"),
@@ -144,8 +145,8 @@ def _surface_from_story_id(story_id: str, defaults: Sequence[str]) -> str:
     return defaults[0] if defaults else "?"
 
 
-def _markdown_catalog(path: Path) -> dict[str, tuple[str, str]]:
-    catalog: dict[str, tuple[str, str]] = {}
+def _markdown_catalog(path: Path) -> dict[str, tuple[str, str, str]]:
+    catalog: dict[str, tuple[str, str, str]] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         match = MARKDOWN_STORY_ROW.match(line)
         if not match:
@@ -155,6 +156,7 @@ def _markdown_catalog(path: Path) -> dict[str, tuple[str, str]]:
         if normalized in catalog:
             raise SurfaceStatusError(f"duplicate story ID in story index: {story_id}")
         catalog[normalized] = (
+            story_id,
             _surface_name(match.group("surface"), "T"),
             match.group("title").strip(),
         )
@@ -162,10 +164,10 @@ def _markdown_catalog(path: Path) -> dict[str, tuple[str, str]]:
 
 
 def _catalog_lookup(
-    catalog: dict[str, tuple[str, str]],
+    catalog: dict[str, tuple[str, str, str]],
     story_id: str,
     aliases: dict[str, str] | None = None,
-) -> tuple[str, str] | None:
+) -> tuple[str, str, str] | None:
     normalized_story_id = story_id.casefold()
     candidates: list[str] = []
     if aliases and normalized_story_id in aliases:
@@ -198,6 +200,39 @@ def _story_status(
     return status
 
 
+def _aliased_story_status(
+    story_id: str,
+    status_map: dict[str, tuple[str, str]],
+    aliases: dict[str, str],
+    issues: list[str],
+) -> str | None:
+    """Resolve a stable index ID against a slug-shaped local tracker key."""
+    normalized_story_id = story_id.casefold()
+    entry = status_map.get(normalized_story_id)
+    if entry is None:
+        matches = [
+            source
+            for source, target in aliases.items()
+            if target == normalized_story_id and source in status_map
+        ]
+        if len(matches) > 1:
+            issues.append(
+                f"multiple tracker aliases resolve to story {story_id}: "
+                + ", ".join(sorted(matches))
+            )
+            return None
+        if matches:
+            entry = status_map[matches[0]]
+    if entry is None:
+        issues.append(f"missing status for story {story_id}")
+        return None
+    status = entry[1]
+    if status not in ALLOWED_STATUSES:
+        issues.append(f"unknown status for story {story_id}: {status}")
+        return None
+    return status
+
+
 def _yaml_repository_report(
     root: Path,
     manifest: dict,
@@ -214,6 +249,7 @@ def _yaml_repository_report(
     records: list[StoryRecord] = []
     issues: list[str] = []
     seen: set[str] = set()
+    aliases = _story_aliases(manifest, repository)
     default_surface = surfaces[0] if len(surfaces) == 1 else "?"
     for raw_story in raw_stories:
         if not isinstance(raw_story, dict) or not raw_story.get("id"):
@@ -225,7 +261,7 @@ def _yaml_repository_report(
             issues.append(f"duplicate story ID in story index: {story_id}")
             continue
         seen.add(normalized)
-        status = _story_status(story_id, status_map, issues)
+        status = _aliased_story_status(story_id, status_map, aliases, issues)
         if status is None:
             continue
         surface = str(raw_story.get("surface") or default_surface)
@@ -257,8 +293,14 @@ def _yaml_repository_report(
         for raw in raw_stories
         if isinstance(raw, dict) and raw.get("id")
     }
+    alias_sources = set(aliases)
+    for source, target in aliases.items():
+        if source in status_map and target not in indexed_ids:
+            issues.append(
+                f"story alias target is missing from story index: {source} -> {target}"
+            )
     for normalized, (original, _) in status_map.items():
-        if normalized not in indexed_ids:
+        if normalized not in indexed_ids and normalized not in alias_sources:
             issues.append(f"tracker story is missing from story index: {original}")
     if issues:
         raise SurfaceStatusError(issues)
@@ -285,14 +327,18 @@ def _markdown_repository_report(
         if catalog_entry is None:
             issues.append(f"tracker story is missing from story index: {story_id}")
             continue
-        surface, title = catalog_entry
+        canonical_id, surface, title = catalog_entry
         if surface not in surfaces:
             issues.append(f"story {story_id} uses unregistered surface: {surface}")
+        report_story_id = story_id
+        alias_target = aliases.get(story_id.casefold())
+        if alias_target is not None and alias_target.startswith("std-"):
+            report_story_id = canonical_id
         records.append(
             StoryRecord(
                 repository=repository,
                 surface=surface,
-                story_id=story_id,
+                story_id=report_story_id,
                 status=status,
                 title=title,
                 kind="surface",

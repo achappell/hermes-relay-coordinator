@@ -77,6 +77,28 @@ def test_report_reads_local_status_and_orders_next_candidates(tmp_path: Path):
     assert "Next candidates" in report
 
 
+def test_yaml_catalog_resolves_declared_tracker_aliases(tmp_path: Path):
+    repo = write_repository(
+        tmp_path / "ios",
+        stories=[
+            {"id": "STD-4", "title": "Standard migration", "kind": "next-wave"},
+        ],
+        statuses={
+            "next-wave": "in-progress",
+            "standard-4-apple-migrate-client": "backlog",
+        },
+    )
+    manifest_path = repo / "bmad-surface.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    manifest["story_aliases"] = {"standard-4-apple-migrate-client": "STD-4"}
+    manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+    report = render_report([repo])
+
+    assert "| STD-4 | backlog | Standard migration |" in report
+    assert "next-wave" not in report
+
+
 def test_not_applicable_repository_contributes_no_story_rows(tmp_path: Path):
     repo = write_repository(
         tmp_path / "agent",
