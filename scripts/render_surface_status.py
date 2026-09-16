@@ -206,31 +206,35 @@ def _aliased_story_status(
     aliases: dict[str, str],
     issues: list[str],
 ) -> str | None:
-    """Resolve a stable index ID against a slug-shaped local tracker key."""
+    """Resolve an index ID and require all declared tracker aliases to agree."""
     normalized_story_id = story_id.casefold()
-    entry = status_map.get(normalized_story_id)
-    if entry is None:
-        matches = [
-            source
-            for source, target in aliases.items()
-            if target == normalized_story_id and source in status_map
-        ]
-        if len(matches) > 1:
-            issues.append(
-                f"multiple tracker aliases resolve to story {story_id}: "
-                + ", ".join(sorted(matches))
-            )
-            return None
-        if matches:
-            entry = status_map[matches[0]]
-    if entry is None:
+    entries: list[tuple[str, str]] = []
+    direct_entry = status_map.get(normalized_story_id)
+    if direct_entry is not None:
+        entries.append((direct_entry[0], direct_entry[1]))
+    entries.extend(
+        (source, status_map[source][1])
+        for source, target in aliases.items()
+        if target == normalized_story_id and source in status_map
+    )
+    if not entries:
         issues.append(f"missing status for story {story_id}")
         return None
-    status = entry[1]
-    if status not in ALLOWED_STATUSES:
-        issues.append(f"unknown status for story {story_id}: {status}")
+
+    invalid = [
+        (source, status) for source, status in entries if status not in ALLOWED_STATUSES
+    ]
+    if invalid:
+        for source, status in invalid:
+            issues.append(f"unknown status for story {source}: {status}")
         return None
-    return status
+
+    statuses = {status for _, status in entries}
+    if len(statuses) > 1:
+        details = ", ".join(f"{source}={status}" for source, status in sorted(entries))
+        issues.append(f"conflicting tracker statuses for story {story_id}: {details}")
+        return None
+    return entries[0][1]
 
 
 def _yaml_repository_report(
@@ -250,6 +254,11 @@ def _yaml_repository_report(
     issues: list[str] = []
     seen: set[str] = set()
     aliases = _story_aliases(manifest, repository)
+    indexed_ids = {
+        str(raw["id"]).casefold()
+        for raw in raw_stories
+        if isinstance(raw, dict) and raw.get("id")
+    }
     default_surface = surfaces[0] if len(surfaces) == 1 else "?"
     for raw_story in raw_stories:
         if not isinstance(raw_story, dict) or not raw_story.get("id"):
@@ -261,9 +270,6 @@ def _yaml_repository_report(
             issues.append(f"duplicate story ID in story index: {story_id}")
             continue
         seen.add(normalized)
-        status = _aliased_story_status(story_id, status_map, aliases, issues)
-        if status is None:
-            continue
         surface = str(raw_story.get("surface") or default_surface)
         if surface not in surfaces:
             issues.append(f"story {story_id} uses unregistered surface: {surface}")
@@ -275,6 +281,20 @@ def _yaml_repository_report(
             ref_path = _repo_relative(root, reference, f"{story_id}.{field}")
             if not ref_path.exists():
                 issues.append(f"missing {field} for story {story_id}: {reference}")
+
+        alias_target = aliases.get(normalized)
+        if (
+            alias_target is not None
+            and alias_target != normalized
+            and alias_target in indexed_ids
+        ):
+            # Keep the local/indexed identity for traceability, but emit only
+            # the declared canonical record below.
+            continue
+
+        status = _aliased_story_status(story_id, status_map, aliases, issues)
+        if status is None:
+            continue
         records.append(
             StoryRecord(
                 repository=repository,
@@ -288,14 +308,11 @@ def _yaml_repository_report(
             )
         )
 
-    indexed_ids = {
-        str(raw["id"]).casefold()
-        for raw in raw_stories
-        if isinstance(raw, dict) and raw.get("id")
-    }
     alias_sources = set(aliases)
     for source, target in aliases.items():
-        if source in status_map and target not in indexed_ids:
+        if (
+            source in status_map or source in indexed_ids
+        ) and target not in indexed_ids:
             issues.append(
                 f"story alias target is missing from story index: {source} -> {target}"
             )

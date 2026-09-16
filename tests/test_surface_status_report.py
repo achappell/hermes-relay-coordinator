@@ -99,6 +99,56 @@ def test_yaml_catalog_resolves_declared_tracker_aliases(tmp_path: Path):
     assert "next-wave" not in report
 
 
+def test_yaml_catalog_collapses_declared_story_aliases(tmp_path: Path):
+    repo = write_repository(
+        tmp_path / "ios",
+        stories=[
+            {"id": "0-I-4", "title": "Local migration", "kind": "migration"},
+            {"id": "STD-4", "title": "Standard migration", "kind": "next-wave"},
+        ],
+        statuses={
+            "0-i-4": "review",
+            "standard-4-apple-migrate-client": "review",
+        },
+    )
+    manifest_path = repo / "bmad-surface.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    manifest["story_aliases"] = {
+        "0-i-4": "STD-4",
+        "standard-4-apple-migrate-client": "STD-4",
+    }
+    manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+    report = render_report([repo])
+
+    assert report.count("| STD-4 | review | Standard migration |") == 1
+    assert "| 0-I-4 |" not in report
+
+
+def test_yaml_catalog_rejects_conflicting_story_alias_statuses(tmp_path: Path):
+    repo = write_repository(
+        tmp_path / "ios",
+        stories=[
+            {"id": "0-I-4", "title": "Local migration", "kind": "migration"},
+            {"id": "STD-4", "title": "Standard migration", "kind": "next-wave"},
+        ],
+        statuses={
+            "0-i-4": "review",
+            "standard-4-apple-migrate-client": "done",
+        },
+    )
+    manifest_path = repo / "bmad-surface.yaml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    manifest["story_aliases"] = {
+        "0-i-4": "STD-4",
+        "standard-4-apple-migrate-client": "STD-4",
+    }
+    manifest_path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+    with pytest.raises(SurfaceStatusError, match="conflicting tracker statuses"):
+        render_report([repo])
+
+
 def test_not_applicable_repository_contributes_no_story_rows(tmp_path: Path):
     repo = write_repository(
         tmp_path / "agent",
