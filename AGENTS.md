@@ -58,16 +58,16 @@ tool-specific worktree location. BMAD loop-managed run worktrees under
 
 ## GitHub Project mirror
 
-GitHub Project #3 is a mechanical mirror of accepted local BMad delivery
-records, not the source of truth. Board work is paused unless Amanda explicitly
-reopens it. Do not inspect, query, create, edit, move, delete, archive, or
-reconcile board items during the pause.
+GitHub Project #3 is an active mechanical mirror of accepted local BMad
+delivery records, not the source of truth. Board updates are permitted through
+this coordinator procedure.
 
-When the board is explicitly reopened, use the owning repository's accepted
-local tracker and story index as input. Mirror only the cards belonging to that
-repository's registered surfaces, preserve card identity, and map statuses from
-the local tracker. Never infer local status from the board, close issues or PRs
-as part of a routine mirror, or change a sibling repository's status.
+Before an update, read the owning repository's accepted local tracker and story
+index. Mirror only cards belonging to that repository's registered surfaces,
+preserve card identity, and map status from the local tracker. If a card is
+missing or the match is ambiguous, stop and report it instead of creating a
+duplicate. Never infer local status from the board, close issues or PRs as part
+of a routine mirror, or change a sibling repository's status.
 
 ## Safety and review
 
