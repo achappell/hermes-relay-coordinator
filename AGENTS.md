@@ -14,7 +14,6 @@ repositories. It is not a product surface and does not own delivery stories.
   - `hermes-relay-tui`: Textual TUI, ReSpeaker Puck, ESP32 Touch Display, and
     W/K web/iPad delivery.
   - `hermes-relay-home`: Home configuration, arbitration, and service delivery.
-  - `hermes-agent`: agent integration tooling; outside BMad delivery scope.
 - This repository owns only the roster, validation, and derived portfolio
   report. It must not become a duplicate backlog or status tracker.
 
@@ -28,7 +27,6 @@ Route a requested ticket change to the owning repository before editing files:
 | Android behaviour | `hermes-relay-android` |
 | TUI, Puck, ESP32 Touch Display, or W/K behaviour | `hermes-relay-tui` |
 | Home configuration, arbitration, or service behaviour | `hermes-relay-home` |
-| Agent integration or provider/tooling behaviour | `hermes-agent`; do not create a BMad story here |
 | Product intent or a decision shared by multiple surfaces | Private product hub, then separate implementation changes in each affected owner |
 | Portfolio report, roster, or validation rule | This repository |
 

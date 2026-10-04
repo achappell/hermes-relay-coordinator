@@ -62,8 +62,8 @@ def test_report_reads_local_status_and_orders_next_candidates(tmp_path: Path):
         statuses={"1-i-1": "done", "1-i-2": "ready-for-dev", "1-i-3": "backlog"},
     )
     second = write_repository(
-        tmp_path / "agent",
-        repository="hermes-agent",
+        tmp_path / "docs",
+        repository="hermes-relay-docs",
         planning="not-applicable",
     )
 
@@ -72,7 +72,7 @@ def test_report_reads_local_status_and_orders_next_candidates(tmp_path: Path):
     assert "derived output" in report.lower()
     assert "hermes-relay-ios" in report
     assert "Ready item" in report
-    assert "hermes-agent" in report
+    assert "hermes-relay-docs" in report
     assert report.index("Ready item") < report.index("Backlog item")
     assert "Next candidates" in report
 
@@ -151,14 +151,14 @@ def test_yaml_catalog_rejects_conflicting_story_alias_statuses(tmp_path: Path):
 
 def test_not_applicable_repository_contributes_no_story_rows(tmp_path: Path):
     repo = write_repository(
-        tmp_path / "agent",
-        repository="hermes-agent",
+        tmp_path / "docs",
+        repository="hermes-relay-docs",
         planning="not-applicable",
     )
 
     report = render_report([repo])
 
-    assert "hermes-agent" in report
+    assert "hermes-relay-docs" in report
     assert "not applicable" in report.lower()
     assert "Next candidates" in report
 
@@ -362,10 +362,6 @@ def test_cli_preserves_repository_aliases_for_worktree_roster(tmp_path: Path):
             statuses={f"1-i-{number}": "done"},
         )
         entries.extend(("--repo", f"{alias}={repo}"))
-    write_repository(
-        tmp_path / "agent", repository="hermes-agent", planning="not-applicable"
-    )
-    entries.extend(("--repo", f"agent={tmp_path / 'agent'}"))
     output = tmp_path / "surface-status-report.md"
 
     result = main([*entries, "--output", str(output)])
@@ -373,7 +369,6 @@ def test_cli_preserves_repository_aliases_for_worktree_roster(tmp_path: Path):
     assert result == 0
     report = output.read_text(encoding="utf-8")
     assert "hermes-relay-ios" in report
-    assert "hermes-agent" in report
 
 
 def test_cli_reads_relative_repository_roster(tmp_path: Path):
@@ -388,10 +383,6 @@ def test_cli_reads_relative_repository_roster(tmp_path: Path):
             statuses={f"1-i-{number}": "done"},
         )
         roster.append({"name": alias, "path": f"repositories/{alias}"})
-    write_repository(
-        repository_root / "agent", repository="hermes-agent", planning="not-applicable"
-    )
-    roster.append({"name": "agent", "path": "repositories/agent"})
     config = tmp_path / "surface-repositories.yaml"
     config.write_text(yaml.safe_dump({"repositories": roster}), encoding="utf-8")
     output = tmp_path / "surface-status-report.md"
