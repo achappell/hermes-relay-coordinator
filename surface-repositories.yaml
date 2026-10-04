@@ -9,5 +9,3 @@ repositories:
     path: ../hermes-relay-android
   - name: home
     path: ../hermes-relay-home
-  - name: agent
-    path: ../hermes-agent

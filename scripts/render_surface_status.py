@@ -19,7 +19,7 @@ ALLOWED_STATUSES = {
     "review",
     "done",
 }
-DEFAULT_REPOSITORY_ALIASES = ("tui", "ios", "android", "home", "agent")
+DEFAULT_REPOSITORY_ALIASES = ("tui", "ios", "android", "home")
 META_KEY_PATTERNS = (
     re.compile(r"^epic-"),
     re.compile(r"^next-wave$"),

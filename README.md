@@ -14,7 +14,6 @@ The ownership boundary is intentional:
 | Android delivery stories, specifications, validation, and status | `hermes-relay-android` |
 | TUI, Puck, ESP32 Touch Display, and W/K delivery stories, specifications, validation, and status | `hermes-relay-tui` |
 | Home configuration, arbitration, and service delivery stories, specifications, validation, and status | `hermes-relay-home` |
-| Agent integration tooling | `hermes-agent` (outside BMad delivery scope) |
 | Cross-repository read-only roll-up | This repository |
 
 The coordinator is not a backlog and is not a second status authority. A ticket
@@ -24,7 +23,7 @@ orientation and review; it never writes to a surface repository.
 
 ## Render the portfolio report
 
-The standard roster assumes the five delivery repositories are adjacent to this
+The standard roster assumes the four delivery repositories are adjacent to this
 checkout and contains paths only:
 
 ```bash
@@ -33,7 +32,7 @@ uv run python scripts/render_surface_status.py \
   --output surface-status-report.md
 ```
 
-For worktrees or another checkout layout, pass all five repositories explicitly:
+For worktrees or another checkout layout, pass all four repositories explicitly:
 
 ```bash
 uv run python scripts/render_surface_status.py \
@@ -41,7 +40,6 @@ uv run python scripts/render_surface_status.py \
   --repo ios=../hermes-relay-ios/.worktrees/federated-bmad-ownership \
   --repo android=../hermes-relay-android/.worktrees/federated-bmad-ownership \
   --repo home=../hermes-relay-home/.worktrees/federated-bmad-ownership \
-  --repo agent=../hermes-agent/.worktrees/federated-bmad-ownership \
   --output surface-status-report.md
 ```
 
